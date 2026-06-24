@@ -1,4 +1,8 @@
 import * as fs from 'node:fs/promises';
+import path from 'node:path';
+
+const filePath = path.join(process.cwd(), 'command.txt');
+console.log(filePath);
 
 
 (async () => {
@@ -17,47 +21,87 @@ import * as fs from 'node:fs/promises';
     const createFile = async(path) => {
         try {
             const fileExists = await checkFileExists(path);
+            
             if (fileExists) {
                 console.log("File already exists.");
                 return;
             }
-        } catch (error) {
+
             const newFileHandler = await fs.open(path, 'w');
             console.log("A new file has been created.");
-            newFileHandler.close(); // close the file handler after creating the file
+            newFileHandler.close();
+        } catch (error) {
+            console.error("Error creating file:", error);
         }
     }
 
     const deleteFile = async (path) => {
         try {
-            await checkFileExists(path);
-            return 
-        } catch (error) {
-            const deletedFileHandler = await fs.rm(path);
+            const fileExists = await checkFileExists(path);
+            
+            if (!fileExists) {
+                console.log("File does not exist.");
+                return;
+            }
+            
+            await fs.unlink(path);
             console.log("File has been deleted.");
-            deletedFileHandler.close(); // close the file handler after deleting the file
+            
+        } catch (error) {
+            console.error("Error deleting file:", error);
         }
     }
 
     const renameFile = async (oldPath, newPath) => {
         try {
-            await checkFileExists(oldPath);
-            return 
-        } catch (error) {
-            const renamedFileHandler = await fs.rename(oldPath, newPath);
+            const fileExists = await checkFileExists(oldPath);
+            
+            if (!fileExists) {
+                console.log("File does not exist.");
+                return;
+            }
+
+            // console.log(oldPath, newPath);
+
+            await fs.rename(oldPath, newPath);
             console.log("File has been renamed.");
-            renamedFileHandler.close(); // close the file handler after renaming the file
+
+        } catch (error) {
+            if (error.code === 'ENONET') {
+                console.error("Error renaming file: A file with the new name already exists.");
+            } else {
+                console.error("Error renaming file:", error);
+            }
+        }
+    }
+
+    let addedContent;
+
+    const appendToFile = async (path, content) => {
+        if (addedContent === content) return;
+        try {
+            const fileExists = await checkFileExists(path);
+            
+            if (!fileExists) {
+                console.log("File does not exist.");
+                return;
+            }
+            addedContent = content;
+            
+            await fs.appendFile(path, content);
+            console.log("Content has been appended to the file.");
+        } catch (error) {
+            console.error("Error appending to file:", error);
         }
     }
     
     //commands
     const CREATE_FILE_COMMAND = "create a file";
     const DELETE_FILE_COMMAND = "delete a file";
-    const WRITE_FILE_COMMAND = "write to the file";
     const RENAME_FILE_COMMAND = "rename the file";
     const APPEND_FILE_COMMAND = "append to the file";
 
-    const fileHandler = await fs.open('./command.txt', 'r') // open file 
+    const fileHandler = await fs.open(filePath, 'r') // open file 
 
     fileHandler.on("change", async() => {
             // get the size of the file to create a buffer of the correct size
@@ -83,7 +127,6 @@ import * as fs from 'node:fs/promises';
             // create a file <path>
             if(command.includes(CREATE_FILE_COMMAND)) {
                 const filePath = command.substring(CREATE_FILE_COMMAND.length + 1).trim();
-                console.log(`Creating file at path: ${filePath}`);
                 await createFile(filePath);
             }
 
@@ -95,13 +138,6 @@ import * as fs from 'node:fs/promises';
                 await deleteFile(filePath);
             }
 
-            // write to a file:
-            // write to a file <path> <content>
-            if (command.includes(WRITE_FILE_COMMAND)) {
-                const filePath = command.substring(WRITE_FILE_COMMAND.length + 1).trim();
-                console.log(`Writing to file at path: ${filePath}`);
-                 await writeFile(filePath, content);
-            }
 
             // rename a file:
             // rename a file <oldPath> to <newPath>
@@ -109,16 +145,23 @@ import * as fs from 'node:fs/promises';
                 const index = command.indexOf(" to ");
                 const oldPath = command.substring(RENAME_FILE_COMMAND.length + 1, index).trim();
                 const newPath = command.substring(index + 4).trim();
+                // console.log(newPath);
 
-                console.log(`Renaming file from path: ${oldPath} to path: ${newPath}`);
+                // console.log(`Renaming file from path: ${oldPath} to path: ${newPath}`);
                 await renameFile(oldPath, newPath);
             }
 
             // append to file:
-            // append to file <path> <content>
+            // append to the file <path> content: <content>
             if (command.includes(APPEND_FILE_COMMAND)) {
-                const filePath = command.substring(APPEND_FILE_COMMAND.length + 1).trim();
-                console.log(`Appending to file at path: ${filePath}`);
+                const index = command.indexOf(" content: ");
+                const filePath = command.substring(APPEND_FILE_COMMAND.length + 1, index).trim();
+                console.log(filePath);
+                
+                const content = command.substring(index + 10).trim();
+                console.log(content)
+
+               
                 await appendToFile(filePath, content);
             }
            

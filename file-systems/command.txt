@@ -1,1 +1,1 @@
-delete a file hello-world.txt
+append to the file newFile.txt content: Hello world\n
